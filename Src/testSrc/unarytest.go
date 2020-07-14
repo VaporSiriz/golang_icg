@@ -2,31 +2,26 @@ package main
 
 import "fmt"
 
-func gcd(a int, b int) int {
-	c := a
-	d := b
+func main() {
+	perfect(5)
+}
 
-	if c == 0 {
-		return d
-	}
-	for d != 0 {
-		if c > d {
-			c = c - d
-		} else {
-			d = d - c
+func perfect(iter int) {
+
+	i := 0
+	j := 0
+	sum := 0
+
+	for i = 1; i <= iter; i++ {
+		sum = 0
+		for j = 1; j < i; j++ {
+			if i%j == 0 {
+				sum += j
+			}
+		}
+		if sum == i {
+			fmt.Printf("%d ", i)
 		}
 	}
-	return c
-}
-func swap(a int, b int) (int, int) {
-	c := b
-	d := a
-
-	return c, d
-}
-func main() {
-	a := 42
-	b := 56
-	c, d := swap(a, b)
-	fmt.Println(c + d)
+	fmt.Printf("\n")
 }

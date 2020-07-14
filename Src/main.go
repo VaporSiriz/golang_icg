@@ -9,6 +9,7 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"io/ioutil"
 	"log"
 	"strconv"
 	"strings"
@@ -41,10 +42,14 @@ func SAFFileGen(silTable *icg.SILTable,litTable *symbolTable.LiteralTable, sourc
 	//Header gen
 	buffer := strings.Builder{}
 	buffer.WriteString(SAFHeaderGen(litTable,sourceFile))
-	buffer.WriteString(CodeSectionGen(silTable))
+	buffer.WriteString(CodeSectionGen(silTable, "main"))
 	buffer.WriteString(DataSectionGen(litTable))
-	fmt.Println(buffer.String())
 
+	data := []byte(buffer.String())
+	sources := strings.Split(sourceFile, "/")
+	fileName := sources[len(sources)-1]
+	fileName = "./SILResult/"  + fileName + ".saf"
+	ioutil.WriteFile(fileName,data,0644)
 
 }
 func DataSectionGen(litTable *symbolTable.LiteralTable) string {
@@ -82,38 +87,72 @@ func DataSectionGen(litTable *symbolTable.LiteralTable) string {
 
 	return buffer.String()
 }
-func CodeSectionGen(table *icg.SILTable) string {
+func CodeSectionGen(table *icg.SILTable, entryFunction string) string {
 	buffer := strings.Builder{}
 	buffer.WriteString("%%CodeSectionStart\n")
 	for k, v := range table.FunctionCodeTable() {
 		funcName:= table.StringPool().LookupSymbolName(k)
-		paramCount := table.FunctionParamCountTable()[k]
+		if funcName == entryFunction {
+			paramCount := table.FunctionParamCountTable()[k]
 
-		buffer.WriteString("\t%FunctionStart\n")
-		buffer.WriteString("\t\t" + fmt.Sprintf(".func_name\t&%s\n",funcName))
-		buffer.WriteString("\t\t" + fmt.Sprintf(".func_type\t%d\n",2))
-		buffer.WriteString("\t\t" + fmt.Sprintf(".param_count\t%d\n",paramCount))
-		buffer.WriteString("\t\t.opcode_start\n")
+			buffer.WriteString("\t%FunctionStart\n")
+			buffer.WriteString("\t\t" + fmt.Sprintf(".func_name\t&%s\n",funcName))
+			buffer.WriteString("\t\t" + fmt.Sprintf(".func_type\t%d\n",2))
+			buffer.WriteString("\t\t" + fmt.Sprintf(".param_count\t%d\n",paramCount))
+			buffer.WriteString("\t\t.opcode_start\n")
 
-		for _, info := range v {
+			for _, info := range v {
 
-			if stackInfo, ok := info.(*icg.StackOpcode); ok {
-				buffer.WriteString("\t\t\t" + stackInfo.String() + "\n")
-			}
-			if arithinfo, ok := info.(*icg.ArithmeticOpcode); ok {
-				buffer.WriteString("\t\t\t" + arithinfo.String() + "\n")
-			}
-			if cinfo, ok := info.(*icg.ControlOpcode); ok {
-				if cinfo.Opcode() == icg.Label {
-					buffer.WriteString("\t\t"+cinfo.String() + "\n")
-				} else {
-					buffer.WriteString("\t\t\t" + cinfo.String() + "\n")
+				if stackInfo, ok := info.(*icg.StackOpcode); ok {
+					buffer.WriteString("\t\t\t" + stackInfo.String() + "\n")
 				}
-			}
+				if arithinfo, ok := info.(*icg.ArithmeticOpcode); ok {
+					buffer.WriteString("\t\t\t" + arithinfo.String() + "\n")
+				}
+				if cinfo, ok := info.(*icg.ControlOpcode); ok {
+					if cinfo.Opcode() == icg.Label {
+						buffer.WriteString("\t\t"+cinfo.String() + "\n")
+					} else {
+						buffer.WriteString("\t\t\t" + cinfo.String() + "\n")
+					}
+				}
 
+			}
+			buffer.WriteString("\t\t.opcode_end\n")
+			buffer.WriteString("\t%FunctionEnd\n")
 		}
-		buffer.WriteString("\t\t.opcode_end\n")
-		buffer.WriteString("\t%FunctionEnd\n")
+	}
+	for k, v := range table.FunctionCodeTable() {
+		funcName:= table.StringPool().LookupSymbolName(k)
+		if funcName != entryFunction {
+			paramCount := table.FunctionParamCountTable()[k]
+
+			buffer.WriteString("\t%FunctionStart\n")
+			buffer.WriteString("\t\t" + fmt.Sprintf(".func_name\t&%s\n",funcName))
+			buffer.WriteString("\t\t" + fmt.Sprintf(".func_type\t%d\n",2))
+			buffer.WriteString("\t\t" + fmt.Sprintf(".param_count\t%d\n",paramCount))
+			buffer.WriteString("\t\t.opcode_start\n")
+
+			for _, info := range v {
+
+				if stackInfo, ok := info.(*icg.StackOpcode); ok {
+					buffer.WriteString("\t\t\t" + stackInfo.String() + "\n")
+				}
+				if arithinfo, ok := info.(*icg.ArithmeticOpcode); ok {
+					buffer.WriteString("\t\t\t" + arithinfo.String() + "\n")
+				}
+				if cinfo, ok := info.(*icg.ControlOpcode); ok {
+					if cinfo.Opcode() == icg.Label {
+						buffer.WriteString("\t\t"+cinfo.String() + "\n")
+					} else {
+						buffer.WriteString("\t\t\t" + cinfo.String() + "\n")
+					}
+				}
+
+			}
+			buffer.WriteString("\t\t.opcode_end\n")
+			buffer.WriteString("\t%FunctionEnd\n")
+		}
 	}
 
 	buffer.WriteString("%%CodeSectionEnd\n")
@@ -164,6 +203,7 @@ func main() {
 	var symTble *symbolTable.BlockSymbolTable
 	var litTable *symbolTable.LiteralTable
 	var silTable *icg.SILTable
+	var importLibList []string
 
 	if len(os.Args) >= 2 {
 		for i, args := range os.Args {
@@ -184,8 +224,8 @@ func main() {
 				strPoolGenerator = &symbolTable.StringPoolGenerator{}
 				strPoolGenerator.Init(info)
 
-				strPool, symTble, litTable = strPoolGenerator.Gen(f)
-				silTable = icg.CodeGen(f, fs, info, strPool, symTble, litTable)
+				strPool, symTble, litTable,importLibList = strPoolGenerator.Gen(f)
+				silTable = icg.CodeGen(f, fs, info, strPool, symTble, litTable,importLibList)
 
 				continue
 			}

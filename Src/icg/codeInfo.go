@@ -8,6 +8,10 @@ import (
 	"./symbolTable"
 )
 
+var sysFuncList = [...]string {
+	"Errorf", "Fprint", "Fprintf", "Fscan", "Fscanf", "Fscanln", "Print", "Printf", "Println", "Scan", "Scanf",
+	"Scanln", "Sprint", "Sprintf", "Sprintln","Sscan", "Sscanf", "Sscanln"}
+
 type SilType int
 
 const (

@@ -6,6 +6,7 @@ import (
 	"go/token"
 	"go/types"
 	"strconv"
+	"strings"
 )
 
 //StringPool ...
@@ -61,6 +62,7 @@ type StringPoolGenerator struct {
 	literalTable   *LiteralTable
 	tmpSym         int
 	blockCount     int
+	importLibList []string
 
 	ast.Visitor
 }
@@ -257,7 +259,7 @@ func (pg *StringPoolGenerator) GenDeclList(list []ast.Decl) {
 		pg.Gen(x)
 	}
 }
-func (pg *StringPoolGenerator) Gen(node ast.Node) (*StringPool, *BlockSymbolTable, *LiteralTable) {
+func (pg *StringPoolGenerator) Gen(node ast.Node) (*StringPool, *BlockSymbolTable, *LiteralTable, []string) {
 	switch n := node.(type) {
 	// Comments and fields
 	case *ast.Comment:
@@ -267,7 +269,7 @@ func (pg *StringPoolGenerator) Gen(node ast.Node) (*StringPool, *BlockSymbolTabl
 
 	case *ast.Field:
 		pg.GenIdentList(n.Names)
-		_, _, _ = pg.Gen(n.Type)
+		_, _, _,_ = pg.Gen(n.Type)
 		if n.Tag != nil {
 			pg.Gen(n.Tag)
 		}
@@ -646,6 +648,11 @@ func (pg *StringPoolGenerator) Gen(node ast.Node) (*StringPool, *BlockSymbolTabl
 				pg.index++
 				pg.symbolOffset = sOffset
 
+			} else if importSpec , ok := spec.(*ast.ImportSpec); ok {
+				lib := strings.Split( importSpec.Path.Value , "/")
+				libString := lib[len(lib)-1]
+				libString = libString[1 : len(libString)-1]
+				pg.importLibList = append(pg.importLibList, libString)
 			}
 		}
 
@@ -737,7 +744,7 @@ func (pg *StringPoolGenerator) Gen(node ast.Node) (*StringPool, *BlockSymbolTabl
 		panic(fmt.Sprintf("ast.Gen: unexpected node type %T", n))
 	}
 
-	return pg._pool, pg.offsetTable, pg.literalTable
+	return pg._pool, pg.offsetTable, pg.literalTable,pg.importLibList
 }
 
 func TypeToByte(kind types.BasicKind) int {

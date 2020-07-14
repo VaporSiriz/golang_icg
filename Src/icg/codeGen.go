@@ -9,6 +9,7 @@ import (
 	"go/token"
 	"go/types"
 	"strconv"
+	"strings"
 
 	"./symbolTable"
 )
@@ -47,9 +48,9 @@ func (s Statements) String() string {
 
 //CodeGen ...
 func CodeGen(f *ast.File, fs *token.FileSet, info *types.Info, pool *symbolTable.StringPool,
-	symTble *symbolTable.BlockSymbolTable, litTable *symbolTable.LiteralTable) *SILTable {
+	symTble *symbolTable.BlockSymbolTable, litTable *symbolTable.LiteralTable, importLibList []string) *SILTable {
 	var icg *ICG = &ICG{}
-	icg.Init(fs, pool, info, symTble, litTable)
+	icg.Init(fs, pool, info, symTble, litTable,importLibList)
 
 	silTable := icg.Visit(f)
 	for _, codeInfoList := range silTable.FunctionCodeTable() {
@@ -86,6 +87,7 @@ type ICG struct {
 	_codeState       Statements
 	_tmpSym          int
 	_structSize      int
+	_importLibList []string
 
 	ast.Visitor
 }
@@ -117,7 +119,8 @@ func (icg *ICG) FindSymbolOffset(symName string) (res *symbolTable.SymbolInfo, o
 }
 
 // Init ...
-func (icg *ICG) Init(fs *token.FileSet, pool *symbolTable.StringPool, info *types.Info, symtble *symbolTable.BlockSymbolTable, litTable *symbolTable.LiteralTable) {
+func (icg *ICG) Init(fs *token.FileSet, pool *symbolTable.StringPool, info *types.Info, symtble *symbolTable.BlockSymbolTable,
+	litTable *symbolTable.LiteralTable, importLibList []string) {
 	icg._isGlobalSym = false
 	icg._isFunction = false
 	icg._isReturn = false
@@ -136,6 +139,7 @@ func (icg *ICG) Init(fs *token.FileSet, pool *symbolTable.StringPool, info *type
 	icg._loopStartLabel = -1
 	icg._fs = fs
 	icg._tmpSym = 0
+	icg._importLibList = importLibList
 }
 
 func TypeToSilType(goType types.Type) (kind SilType) {
@@ -1027,10 +1031,36 @@ func (icg *ICG) Visit(node ast.Node) *SILTable {
 			}
 		}
 
-		callOp := &ControlOpcode{Call, Nt, list.New(), icg._codeState, -1, -1, -1, position.Line}
-		callOp._params.PushBack(NodeString(icg._fs, n.Fun))
+		var opcodeNum Opcode
+		var param int = -1
+		nodeString := NodeString(icg._fs, n.Fun)
+		for i, iL := range icg._importLibList {
+			if strings.Contains(nodeString, iL) {
+				opcodeNum = Calls
+				param = i
+			}
+		}
+		var callOp *ControlOpcode
+		if param > -1 {
+			callOp = &ControlOpcode{opcodeNum, Nt, list.New(), icg._codeState, -1, -1, -1, position.Line}
+			iLParam := -1
+			for i, iL := range sysFuncList {
+				if strings.Contains(nodeString, iL) {
+					iLParam = i+320
+				}
+			}
 
-		callOp.Init()
+			callOp._params.PushBack(iLParam)
+
+			callOp.Init()
+		}else {
+			callOp = &ControlOpcode{Call, Nt, list.New(), icg._codeState, -1, -1, -1, position.Line}
+
+			callOp._params.PushBack(nodeString)
+
+			callOp.Init()
+		}
+
 
 		//fmt.Println(icg._info.Types[n.Fun].Type.(*types.Signature))
 		if sig, ok := icg._info.Types[n.Fun].Type.(*types.Signature); ok {
@@ -1441,6 +1471,7 @@ func (icg *ICG) Visit(node ast.Node) *SILTable {
 		icg.Visit(n.X)
 		typeInfo := icg._info.Types[n.X].Type
 		strOp := &StackOpcode{}
+		strOp._params = list.New()
 		if ident, ok := n.X.(*ast.Ident); ok {
 			inf, _ := icg.FindSymbolOffset(ident.Name)
 

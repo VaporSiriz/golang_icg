@@ -116,3 +116,4 @@ func (o *SymbolTable) IsEmpty() bool {
 	}
 	return false
 }
+
