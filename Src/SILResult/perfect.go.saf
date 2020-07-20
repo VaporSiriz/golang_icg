@@ -1,0 +1,105 @@
+%%HeaderSectionStart
+	%DefinedLiteralCount	2
+	%InitializedVariableCount	0
+	%ExternalVariableCount	0
+	%ExternalFunctionCount	0
+	%InitFunctionName	0
+	%EntryFunctionName	&main
+	%SourceFileName	perfect.go
+	%DebugMode	Release
+%%HeaderSectionEnd
+%%CodeSectionStart
+	%FunctionStart
+		.func_name	&main
+		.func_type	2
+		.param_count	0
+		.opcode_start
+			proc	0	1	1
+			ldp
+			ldc.i	1000
+			call	&perfect
+			ret
+		.opcode_end
+	%FunctionEnd
+	%FunctionStart
+		.func_name	&perfect
+		.func_type	2
+		.param_count	1
+		.opcode_start
+			proc	16	1	1
+			str.i	1	0
+			ldc.i	0
+			str.i	1	4
+			ldc.i	0
+			str.i	1	8
+			ldc.i	0
+			str.i	1	12
+			ldc.i	1
+			str.i	1	4
+		%Label	##1
+			lod.i	1	4
+			lod.i	1	0
+			le.i
+			fjp	##2
+			ldc.i	0
+			str.i	1	12
+			ldc.i	1
+			str.i	1	8
+		%Label	##3
+			lod.i	1	8
+			lod.i	1	4
+			lt.i
+			fjp	##4
+			lod.i	1	4
+			lod.i	1	8
+			mod.i
+			ldc.i	0
+			eq.i
+			fjp	##5
+			lod.i	1	12
+			lod.i	1	8
+			add.i
+			str.i	1	12
+		%Label	##5
+		%Label	##6
+			lod.i	1	8
+			inc.i
+			str.i	1	8
+			ujp	##3
+		%Label	##4
+			lod.i	1	12
+			lod.i	1	4
+			eq.i
+			fjp	##7
+			ldp
+			lda	0	@0
+			lod.i	1	4
+			calls	327
+		%Label	##7
+		%Label	##8
+			lod.i	1	4
+			inc.i
+			str.i	1	4
+			ujp	##1
+		%Label	##2
+			ldp
+			lda	0	@1
+			calls	327
+			ret
+		.opcode_end
+	%FunctionEnd
+%%CodeSectionEnd
+%%DataSectionStart
+	%LiteralTableStart
+		.literal_start	@0	0	4
+			0x25,0x64,0x20,0x00
+		.literal_end
+		.literal_start	@1	0	3
+			0x5c,0x6e,0x00
+		.literal_end
+	%LiteralTableEnd
+	%InternalSymbolTableStart
+	%InternalSymbolTableEnd
+	%ExternalSymbolTableStart
+	%ExternalSymbolTableEnd
+%%DataSectionEnd

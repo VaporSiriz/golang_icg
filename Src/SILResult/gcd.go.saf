@@ -1,0 +1,86 @@
+%%HeaderSectionStart
+	%DefinedLiteralCount	0
+	%InitializedVariableCount	0
+	%ExternalVariableCount	0
+	%ExternalFunctionCount	0
+	%InitFunctionName	0
+	%EntryFunctionName	&main
+	%SourceFileName	gcd.go
+	%DebugMode	Release
+%%HeaderSectionEnd
+%%CodeSectionStart
+	%FunctionStart
+		.func_name	&main
+		.func_type	2
+		.param_count	0
+		.opcode_start
+			proc	12	1	1
+			ldc.i	60
+			str.i	1	0
+			ldc.i	48
+			str.i	1	4
+			ldp
+			lod.i	1	0
+			lod.i	1	4
+			call	&gcd
+			str.i	1	8
+			ldp
+			lod.i	1	8
+			calls	328
+			ret
+		.opcode_end
+	%FunctionEnd
+	%FunctionStart
+		.func_name	&gcd
+		.func_type	2
+		.param_count	2
+		.opcode_start
+			proc	16	1	1
+			str.i	1	4
+			str.i	1	0
+			lod.i	1	0
+			str.i	1	8
+			lod.i	1	4
+			str.i	1	12
+			lod.i	1	8
+			ldc.i	0
+			eq.i
+			fjp	##1
+			lod.i	1	12
+			retv.i
+		%Label	##1
+		%Label	##2
+			lod.i	1	12
+			ldc.i	0
+			ne.i
+			fjp	##3
+			lod.i	1	8
+			lod.i	1	12
+			gt.i
+			fjp	##4
+			lod.i	1	8
+			lod.i	1	12
+			sub.i
+			str.i	1	8
+			ujp	##5
+		%Label	##4
+			lod.i	1	12
+			lod.i	1	8
+			sub.i
+			str.i	1	12
+		%Label	##5
+			ujp	##2
+		%Label	##3
+			lod.i	1	8
+			retv.i
+		.opcode_end
+	%FunctionEnd
+%%CodeSectionEnd
+%%DataSectionStart
+	%LiteralTableStart
+	%LiteralTableEnd
+	%InternalSymbolTableStart
+	%InternalSymbolTableEnd
+	%ExternalSymbolTableStart
+	%ExternalSymbolTableEnd
+%%DataSectionEnd

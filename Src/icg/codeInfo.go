@@ -9,8 +9,12 @@ import (
 )
 
 var sysFuncList = [...]string {
+	//fmt
 	"Errorf", "Fprint", "Fprintf", "Fscan", "Fscanf", "Fscanln", "Print", "Printf", "Println", "Scan", "Scanf",
-	"Scanln", "Sprint", "Sprintf", "Sprintln","Sscan", "Sscanf", "Sscanln"}
+	"Scanln", "Sprint", "Sprintf", "Sprintln","Sscan", "Sscanf", "Sscanln",
+
+	//hyperledger fabric shim
+	"CreateCompositeKey", "Error", "GetMSPID", "Start", "StartlnProc", "Success"}
 
 type SilType int
 
@@ -33,7 +37,7 @@ const (
 
 func (silType SilType) String() string {
 	names := [...]string{
-		"i", "c", "s", "l", "ui", "uc", "us", "ul", "f", "d", "p", "t", "p", ""}
+		"i", "c", "s", "l", "ui", "uc", "us", "ul", "f", "d", "p", "t", "", ""}
 
 	return names[silType]
 }
@@ -116,7 +120,7 @@ func (opcode Opcode) String() string {
 	names := [...]string{
 		"nop", "pop", "pop2", "dup", "dup2", "swap", "swap2", "ldc", "lod", "ldi", "lda", "ldftn", "str", "sti",
 		"add", "sub", "mul", "div", "mod", "neg", "eq", "ne", "ge", "gt", "le", "lt", "band", "bor", "bxor",
-		"bcom", "shl", "shr", "ushr", "and", "or", "not", "inc", "dec", "label", "tjp", "fjp", "ujp", "ret", "retv", "retmv", "proc",
+		"bcom", "shl", "shr", "ushr", "and", "or", "not", "inc", "dec", "Label", "tjp", "fjp", "ujp", "ret", "retv", "retmv", "proc",
 		"ldp", "call", "calli", "calls", "callv", "procva", "end", "cvc", "cvs", "cvi", "cvui", "cvl", "cvul", "cvp", "cvf", "cvd"}
 
 	return names[opcode]
