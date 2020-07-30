@@ -183,6 +183,7 @@ func main() {
 	var litTable *symbolTable.LiteralTable
 	var silTable *icg.SILTable
 	var importLibList []string
+	var chaincodeTable *symbolTable.BlockChaincodeSymbolTable
 
 	if len(os.Args) >= 2 {
 		for i, args := range os.Args {
@@ -203,8 +204,8 @@ func main() {
 				strPoolGenerator = &symbolTable.StringPoolGenerator{}
 				strPoolGenerator.Init(info)
 
-				strPool, symTble, litTable, importLibList = strPoolGenerator.Gen(f)
-				silTable = icg.CodeGen(f, fs, info, strPool, symTble, litTable, importLibList)
+				strPool, symTble, litTable, importLibList,chaincodeTable = strPoolGenerator.Gen(f)
+				silTable = icg.CodeGen(f, fs, info, strPool, symTble, litTable, importLibList,chaincodeTable)
 
 				continue
 			}

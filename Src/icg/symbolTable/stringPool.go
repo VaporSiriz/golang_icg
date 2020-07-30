@@ -46,23 +46,25 @@ func (pool *StringPool) Insert(symbol string, symbolNumber int) {
 
 // StringPoolGenerator ...
 type StringPoolGenerator struct {
-	_pool          *StringPool
-	isReceiver     bool
-	index          int
-	symbolOffset   int
-	symbolTypeInfo *types.Info
-	isFirstBlock   bool
-	blockNum       int
-	isField        bool
-	isFunction     bool
-	base           int
-	literalIndex   int
-	offsetTable    *BlockSymbolTable
-	tmpTable       *SymbolTable
-	literalTable   *LiteralTable
-	tmpSym         int
-	blockCount     int
-	importLibList []string
+	_pool             *StringPool
+	isReceiver        bool
+	index             int
+	symbolOffset      int
+	symbolTypeInfo    *types.Info
+	isFirstBlock      bool
+	blockNum          int
+	isField           bool
+	isFunction        bool
+	base              int
+	literalIndex      int
+	offsetTable       *BlockSymbolTable
+	tmpTable          *SymbolTable
+	literalTable      *LiteralTable
+	tmpSym            int
+	blockCount        int
+	importLibList     []string
+	chaincodeTmpTable *ChaincodeSymbolTable
+	chaincodeTable    *BlockChaincodeSymbolTable
 
 	ast.Visitor
 }
@@ -89,6 +91,21 @@ func (pg *StringPoolGenerator) Init(info *types.Info) {
 	pg.literalIndex = 0
 	pg.literalTable = &LiteralTable{}
 	pg.literalTable.Init()
+	pg.chaincodeTmpTable = &ChaincodeSymbolTable{}
+	pg.chaincodeTmpTable.Init()
+	pg.chaincodeTable = &BlockChaincodeSymbolTable{}
+	pg.chaincodeTable.Init()
+}
+
+func (pg *StringPoolGenerator) GenerateChaincodeSymbol(name string, varType types.Type) {
+	typeStr := fmt.Sprint(varType)
+	if strings.Contains(typeStr, "shim.") {
+		splitType := strings.Split(typeStr, "shim.")
+		typeName := splitType[len(splitType)-1]
+
+		chaincodeType := TypeConvertMap[typeName]
+		pg.chaincodeTmpTable.Insert(name, chaincodeType)
+	}
 }
 
 // GenerateSymbolInfo ...
@@ -100,7 +117,7 @@ func (pg *StringPoolGenerator) GenerateSymbolInfo(name string, varType types.Typ
 		res := varType.(*types.Struct)
 		if !pg.isField {
 
-			symInfo := &SymbolInfo{}
+			symInfo := &SymbolInfo{IsError: false}
 			symInfo.Base = pg.base
 			symInfo.Offset = pg.symbolOffset
 			symInfo.IsReceiver = pg.isReceiver
@@ -134,7 +151,7 @@ func (pg *StringPoolGenerator) GenerateSymbolInfo(name string, varType types.Typ
 	case *types.Basic:
 		res := varType.(*types.Basic)
 		if !pg.isField {
-			symInfo := &SymbolInfo{}
+			symInfo := &SymbolInfo{IsError: false}
 			symInfo.Base = pg.base
 			symInfo.Offset = pg.symbolOffset
 			symInfo.Width = TypeToByte(res.Kind())
@@ -154,11 +171,33 @@ func (pg *StringPoolGenerator) GenerateSymbolInfo(name string, varType types.Typ
 		}
 	case *types.Named:
 		res := varType.(*types.Named)
-		width = pg.GenerateSymbolInfo(name, res.Underlying())
+		typeName := fmt.Sprint(varType.String())
+		if typeName == "error" {
+			symInfo := &SymbolInfo{IsError: false}
+			symInfo.Base = pg.base
+			symInfo.Offset = pg.symbolOffset
+			symInfo.Width = TypeToByte(types.Uintptr)
+			pg.symbolOffset += symInfo.Width
+			symInfo.IsReceiver = pg.isReceiver
+			symInfo.IsError = true
+
+			width = symInfo.Width
+			if pg._pool.IsContain(name) {
+				pg.tmpTable.Insert(pg._pool.LookupSymbolNumber(name), symInfo)
+			} else {
+				pg._pool.Insert(name, pg.index)
+				pg.index++
+
+				pg.tmpTable.Insert(pg._pool.LookupSymbolNumber(name), symInfo)
+			}
+		}else {
+			width = pg.GenerateSymbolInfo(name, res.Underlying())
+		}
+
 	case *types.Pointer:
 		res := varType.(*types.Pointer)
 		if !pg.isField {
-			symInfo := &SymbolInfo{}
+			symInfo := &SymbolInfo{IsError: false}
 			symInfo.Base = pg.base
 			symInfo.Offset = pg.symbolOffset
 			symInfo.Width = TypeToByte(types.Uintptr)
@@ -215,12 +254,14 @@ func (pg *StringPoolGenerator) GenerateSymbolInfo(name string, varType types.Typ
 
 	default:
 		if !pg.isField {
-			symInfo := &SymbolInfo{}
+
+			symInfo := &SymbolInfo{IsError: false}
 			symInfo.Base = pg.base
 			symInfo.Offset = pg.symbolOffset
 			symInfo.Width = TypeToByte(types.Uintptr)
 			pg.symbolOffset += symInfo.Width
 			symInfo.IsReceiver = pg.isReceiver
+
 			width = symInfo.Width
 			if pg._pool.IsContain(name) {
 				pg.tmpTable.Insert(pg._pool.LookupSymbolNumber(name), symInfo)
@@ -259,7 +300,7 @@ func (pg *StringPoolGenerator) GenDeclList(list []ast.Decl) {
 		pg.Gen(x)
 	}
 }
-func (pg *StringPoolGenerator) Gen(node ast.Node) (*StringPool, *BlockSymbolTable, *LiteralTable, []string) {
+func (pg *StringPoolGenerator) Gen(node ast.Node) (*StringPool, *BlockSymbolTable, *LiteralTable, []string, *BlockChaincodeSymbolTable) {
 	switch n := node.(type) {
 	// Comments and fields
 	case *ast.Comment:
@@ -269,7 +310,7 @@ func (pg *StringPoolGenerator) Gen(node ast.Node) (*StringPool, *BlockSymbolTabl
 
 	case *ast.Field:
 		pg.GenIdentList(n.Names)
-		_, _, _,_ = pg.Gen(n.Type)
+		pg.Gen(n.Type)
 		if n.Tag != nil {
 			pg.Gen(n.Tag)
 		}
@@ -383,6 +424,8 @@ func (pg *StringPoolGenerator) Gen(node ast.Node) (*StringPool, *BlockSymbolTabl
 				typeInfo := pg.symbolTypeInfo.Types[params.Type]
 
 				pg.GenerateSymbolInfo(ident.Name, typeInfo.Type)
+				pg.GenerateChaincodeSymbol(ident.Name, typeInfo.Type)
+
 				pg.index++
 			}
 
@@ -443,16 +486,19 @@ func (pg *StringPoolGenerator) Gen(node ast.Node) (*StringPool, *BlockSymbolTabl
 				if ident, ok := lhs.(*ast.Ident); ok {
 					pg._pool.Insert(ident.Name, pg.index)
 
-					var typeInfo types.TypeAndValue
+					var typeInfo types.Type
 
 					if len(assign.Lhs) == len(assign.Rhs) {
-						typeInfo = pg.symbolTypeInfo.Types[assign.Rhs[i]]
+						typeInfo = pg.symbolTypeInfo.Types[assign.Rhs[i]].Type
 
 					} else if len(assign.Lhs) > len(assign.Rhs) {
-						typeInfo = pg.symbolTypeInfo.Types[assign.Rhs[0]]
+						typeInfo = pg.symbolTypeInfo.Types[assign.Rhs[0]].Type
 					}
 
-					pg.GenerateSymbolInfo(ident.Name, typeInfo.Type)
+					if t, ok := typeInfo.(*types.Tuple); ok {
+						typeInfo = t.At(i).Type()
+					}
+					pg.GenerateSymbolInfo(ident.Name, typeInfo)
 					pg.index++
 				}
 
@@ -478,28 +524,44 @@ func (pg *StringPoolGenerator) Gen(node ast.Node) (*StringPool, *BlockSymbolTabl
 	case *ast.BlockStmt:
 		block := n
 		var sblock *SymbolTable
+		var bblock *ChaincodeSymbolTable
 		isExistPBlock := false
 		if pg.isFirstBlock {
 			pg.isFirstBlock = false
 
 		} else { // 이전 블록이 있는경우
 			sblock = pg.tmpTable
+			bblock = pg.chaincodeTmpTable
+
 			isExistPBlock = true
+
 			pBlock := pg.tmpTable.BlockNum
+			pChainBlock := pg.chaincodeTmpTable.BlockNum
 			pg.tmpTable = &SymbolTable{}
 			pg.tmpTable.Init()
+
+			pg.chaincodeTmpTable = new(ChaincodeSymbolTable)
+			pg.chaincodeTmpTable.Init()
+
 			pg.blockCount++
+
 			pg.tmpTable.BlockNum = pg.blockCount
+
+			pg.chaincodeTmpTable.BlockNum = pg.blockCount
+
 			pg.tmpTable.ParentBlock = pBlock
+			pg.chaincodeTmpTable.ParentBlock = pChainBlock
 		}
 
 		pg.GenStmtList(block.List)
 
 		pg.offsetTable.Insert(pg.tmpTable.BlockNum, pg.tmpTable)
+		pg.chaincodeTable.Insert(pg.chaincodeTmpTable.BlockNum, pg.chaincodeTmpTable)
 		//pg.symbolOffset = 0
 
 		if isExistPBlock {
 			pg.tmpTable = sblock
+			pg.chaincodeTmpTable = bblock
 			pg.blockNum = 0
 		}
 
@@ -648,8 +710,8 @@ func (pg *StringPoolGenerator) Gen(node ast.Node) (*StringPool, *BlockSymbolTabl
 				pg.index++
 				pg.symbolOffset = sOffset
 
-			} else if importSpec , ok := spec.(*ast.ImportSpec); ok {
-				lib := strings.Split( importSpec.Path.Value , "/")
+			} else if importSpec, ok := spec.(*ast.ImportSpec); ok {
+				lib := strings.Split(importSpec.Path.Value, "/")
 				libString := lib[len(lib)-1]
 				libString = libString[1 : len(libString)-1]
 				pg.importLibList = append(pg.importLibList, libString)
@@ -663,12 +725,19 @@ func (pg *StringPoolGenerator) Gen(node ast.Node) (*StringPool, *BlockSymbolTabl
 		pg.isFunction = true
 		// if !pg.tmpTable.IsEmpty() {
 		pg.offsetTable.Insert(pg.tmpTable.BlockNum, pg.tmpTable)
+		pg.chaincodeTable.Insert(pg.chaincodeTmpTable.BlockNum, pg.chaincodeTmpTable)
+
 		pg.tmpTable = &SymbolTable{}
 		pg.tmpTable.Init()
+		pg.chaincodeTmpTable = new(ChaincodeSymbolTable)
+		pg.chaincodeTmpTable.Init()
 		pg.blockCount++
+
 		pg.tmpTable.BlockNum = pg.blockCount
+		pg.chaincodeTmpTable.BlockNum = pg.blockCount
 
 		pg.tmpTable.ParentBlock = 0
+		pg.chaincodeTmpTable.ParentBlock = 0
 
 		pg.symbolOffset = 0
 
@@ -744,7 +813,7 @@ func (pg *StringPoolGenerator) Gen(node ast.Node) (*StringPool, *BlockSymbolTabl
 		panic(fmt.Sprintf("ast.Gen: unexpected node type %T", n))
 	}
 
-	return pg._pool, pg.offsetTable, pg.literalTable,pg.importLibList
+	return pg._pool, pg.offsetTable, pg.literalTable, pg.importLibList, pg.chaincodeTable
 }
 
 func TypeToByte(kind types.BasicKind) int {

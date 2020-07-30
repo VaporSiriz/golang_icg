@@ -11,7 +11,7 @@ import (
 var sysFuncList = [...]string {
 	//fmt
 	"Errorf", "Fprint", "Fprintf", "Fscan", "Fscanf", "Fscanln", "Print", "Printf", "Println", "Scan", "Scanf",
-	"Scanln", "Sprint", "Sprintf", "Sprintln","Sscan", "Sscanf", "Sscanln",
+	"Scanln", "Sprint", "Sprintf", "Sprintln","Sscan", "Sscanf", "Sscanln","Error",
 
 	//hyperledger fabric shim
 	"CreateCompositeKey", "Error", "GetMSPID", "Start", "StartlnProc", "Success"}
@@ -37,11 +37,16 @@ const (
 
 func (silType SilType) String() string {
 	names := [...]string{
-		"i", "c", "s", "l", "ui", "uc", "us", "ul", "f", "d", "p", "t", "", ""}
+		"i", "c", "s", "l", "ui", "uc", "us", "ul", "f", "d", "p", "t", "p", ""}
 
 	return names[silType]
 }
+var conversionList = [...]string {
+	"byte", "[]byte", "int8", "[]int8","int16", "[]int16", "int32", "[]int32","int64", "[]int64", "int", "[]int",
+	"uint8", "[]uint8","uint16", "[]uint16", "uint32", "[]uint32","uint64", "[]uint64", "uint", "[]uint",
+	"float32","[]float32", "float64","[]float64", "string","[]string",
 
+}
 type Opcode int
 
 const (
@@ -208,10 +213,12 @@ func (code *StackOpcode) GetLine() int {
 func (code StackOpcode) String() string {
 	builder := strings.Builder{}
 	builder.WriteString(code._opcode.String())
-	if code._type != -1 {
-		str := code._type.String()
-		if len(str) > 0 {
-			builder.WriteString("." + str)
+	if code._opcode != Lda {
+		if code._type != -1 {
+			str := code._type.String()
+			if len(str) > 0 {
+				builder.WriteString("." + str)
+			}
 		}
 	}
 

@@ -77,6 +77,7 @@ type SymbolInfo struct {
 	FieldWidth []int // struct type일 때만 ..
 	FieldType  []types.Type
 	IsReceiver bool
+	IsError bool
 }
 
 //SymbolTable ...
