@@ -13,7 +13,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Set env
+      run : echo "Set env"
+    - name: Login Dockerhub
+      run: echo ${{ secrets.DOCKERHUB_PASSWORD }} | docker login -u ${{ secrets.DOKCERHUB_USERNAME }} --password-stdin
     - name: Build the Docker image
       run: docker build . --file Dockerfile --tag vaporsiriz/bloackchain_staticanalysis
     - name: Push the docker image
