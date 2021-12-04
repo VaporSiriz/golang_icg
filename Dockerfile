@@ -1,4 +1,4 @@
-FROM bloackchain_staticanalysis
+FROM vaporsiriz/bloackchain_staticanalysis:base
 
 # for real image file
 COPY . /app
