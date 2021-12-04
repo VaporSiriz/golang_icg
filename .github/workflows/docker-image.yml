@@ -16,3 +16,5 @@ jobs:
     - uses: actions/checkout@v2
     - name: Build the Docker image
       run: docker build . --file Dockerfile --tag vaporsiriz/bloackchain_staticanalysis
+    - name: Push the docker image
+      run: docker push vaporsiriz/bloackchain_staticanalysis
