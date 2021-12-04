@@ -9,9 +9,8 @@ import (
 	"go/token"
 	"go/types"
 	"strconv"
-	"strings"
 
-	"./symbolTable"
+	symbolTable "vaporsiriz/icg/symbolTable"
 )
 
 //Statements ...
@@ -39,6 +38,7 @@ const (
 	FuncDecl
 	NotState
 	EndState
+	ImportStmt
 )
 
 func (s Statements) String() string {
@@ -48,9 +48,9 @@ func (s Statements) String() string {
 
 //CodeGen ...
 func CodeGen(f *ast.File, fs *token.FileSet, info *types.Info, pool *symbolTable.StringPool,
-	symTble *symbolTable.BlockSymbolTable, litTable *symbolTable.LiteralTable, importLibList []string, chainTable *symbolTable.BlockChaincodeSymbolTable) *SILTable {
+	symTble *symbolTable.BlockSymbolTable, litTable *symbolTable.LiteralTable) *SILTable {
 	var icg *ICG = &ICG{}
-	icg.Init(fs, pool, info, symTble, litTable,importLibList,chainTable)
+	icg.Init(fs, pool, info, symTble, litTable)
 
 	silTable := icg.Visit(f)
 	for _, codeInfoList := range silTable.FunctionCodeTable() {
@@ -87,9 +87,6 @@ type ICG struct {
 	_codeState       Statements
 	_tmpSym          int
 	_structSize      int
-	_importLibList []string
-	_chainTable *symbolTable.BlockChaincodeSymbolTable
-
 	ast.Visitor
 }
 
@@ -118,36 +115,9 @@ func (icg *ICG) FindSymbolOffset(symName string) (res *symbolTable.SymbolInfo, o
 	return
 
 }
-func (icg *ICG) FindChaincodeType(symName string) (res symbolTable.ChaincodeType, ok bool) {
-	symIndx := icg._stringPool.LookupSymbolNumber(symName)
-	ok = false
-	if symIndx != -1 {
-		blockNum := icg._blockNum
-		for blockNum != -1 {
-			symTble := icg._chainTable.GetSymTable(blockNum)
-			if  symTble == nil {
-				fmt.Errorf("error")
-			}
-			typeInfo, isGetType := symTble.GetType(symName)
-			if !isGetType {
-				blockNum = symTble.ParentBlock
-			} else {
-				res = typeInfo
-				ok = true
-				break
-			}
-
-		}
-	}
-
-	return
-
-}
-
 
 // Init ...
-func (icg *ICG) Init(fs *token.FileSet, pool *symbolTable.StringPool, info *types.Info, symtble *symbolTable.BlockSymbolTable,
-	litTable *symbolTable.LiteralTable, importLibList []string, chainTable *symbolTable.BlockChaincodeSymbolTable) {
+func (icg *ICG) Init(fs *token.FileSet, pool *symbolTable.StringPool, info *types.Info, symtble *symbolTable.BlockSymbolTable, litTable *symbolTable.LiteralTable) {
 	icg._isGlobalSym = false
 	icg._isFunction = false
 	icg._isReturn = false
@@ -166,8 +136,6 @@ func (icg *ICG) Init(fs *token.FileSet, pool *symbolTable.StringPool, info *type
 	icg._loopStartLabel = -1
 	icg._fs = fs
 	icg._tmpSym = 0
-	icg._importLibList = importLibList
-	icg._chainTable = chainTable
 }
 
 func TypeToSilType(goType types.Type) (kind SilType) {
@@ -192,8 +160,6 @@ func TypeToSilType(goType types.Type) (kind SilType) {
 		case types.Int8:
 			kind = C
 		case types.String:
-			kind = Sp
-		case types.UntypedString:
 			kind = Sp
 		case types.Uint:
 			kind = Ui
@@ -1061,91 +1027,20 @@ func (icg *ICG) Visit(node ast.Node) *SILTable {
 			}
 		}
 
+		callOp := &ControlOpcode{Call, Nt, list.New(), icg._codeState, -1, -1, -1, position.Line}
+		callOp._params.PushBack(NodeString(icg._fs, n.Fun))
 
-		isImportLib := false
-		isChaincodeLib := false
-		isError := false
-		isFunction := true
-		var chainParam symbolTable.InterfaceFunction
-		nodeString := NodeString(icg._fs, n.Fun)
+		callOp.Init()
 
-		for _, iL := range icg._importLibList {
-			if strings.Contains(nodeString, iL) {
-				isImportLib = true
-			}
-		}
-
-		if !isImportLib {
-			snodestring := strings.Split(nodeString,".")
-			if len(snodestring) >=2 {
-				headName := snodestring[len(snodestring)-2]
-				funcName := snodestring[len(snodestring)-1]
-				headInfo,_ := icg.FindSymbolOffset(headName)
-				if headInfo.IsError {
-					isError = true
-				}else {
-
-					if typeInfo, isChaincode := icg.FindChaincodeType(headName); isChaincode {
-						if interfaceFunc, ok := symbolTable.FunctionConvertMap[funcName]; ok {
-							if interfaceFuncList, ok := symbolTable.ChaincodeMethodTable[typeInfo]; ok {
-								for _, funcNum := range interfaceFuncList {
-									if interfaceFunc == funcNum {
-										isChaincodeLib = true
-										chainParam = interfaceFunc
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-
-		var callOp *ControlOpcode
-		if isImportLib {
-			callOp = &ControlOpcode{Calls, Nt, list.New(), icg._codeState, -1, -1, -1, position.Line}
-			iLParam := -1
-			for i, iL := range sysFuncList {
-				if strings.Contains(nodeString, iL) {
-					iLParam = i+320
-				}
-			}
-
-			callOp._params.PushBack(iLParam)
-
-
-		}else if isChaincodeLib {
-			callOp = &ControlOpcode{Calls, Nt, list.New(), icg._codeState, -1, -1, -1, position.Line}
-			callOp._params.PushBack(chainParam)
-			callOp.Init()
-		}else if isError {
-			callOp = &ControlOpcode{Calls, Nt, list.New(), icg._codeState, -1, -1, -1, position.Line}
-			for i, iL := range sysFuncList {
-				if iL == "Error" {
-					callOp._params.PushBack(i+320)
-					break
-				}
-			}
-
+		//fmt.Println(icg._info.Types[n.Fun].Type.(*types.Signature))
+		if sig, ok := icg._info.Types[n.Fun].Type.(*types.Signature); ok {
+			callOp._pushParamNum = sig.Results().Len()
 		} else {
-
-			for _,str := range conversionList {
-				if nodeString == str {
-					isFunction = false
-				}
-			}
-			if isFunction {
-
-				callOp = &ControlOpcode{Call, Nt, list.New(), icg._codeState, -1, -1, -1, position.Line}
-
-				callOp._params.PushBack(nodeString)
-			}
-
-
+			callOp._pushParamNum = 1
 		}
-		if isFunction {
-			icg._codeInfoList = append(icg._codeInfoList, callOp)
-		}
+
+		callOp._popParamNum = len(n.Args)
+		icg._codeInfoList = append(icg._codeInfoList, callOp)
 
 		icg._isCallExpr = false
 	case *ast.StarExpr:
@@ -1546,7 +1441,6 @@ func (icg *ICG) Visit(node ast.Node) *SILTable {
 		icg.Visit(n.X)
 		typeInfo := icg._info.Types[n.X].Type
 		strOp := &StackOpcode{}
-		strOp._params = list.New()
 		if ident, ok := n.X.(*ast.Ident); ok {
 			inf, _ := icg.FindSymbolOffset(ident.Name)
 
@@ -3573,7 +3467,7 @@ func (icg *ICG) Visit(node ast.Node) *SILTable {
 		icg._codeState = RangeStmt
 	// Declarations
 	case *ast.ImportSpec:
-
+		icg._codeState = ImportStmt
 	case *ast.ValueSpec:
 		icg._codeState = ValueSpec
 		isFunctionExpr := false
@@ -3801,8 +3695,6 @@ func (icg *ICG) Visit(node ast.Node) *SILTable {
 		opcode._params = list.New()
 		//procIndx := len(icg._codeInfoList)
 		params := funcDecl.Type.Params.List
-		paramsCount := len(funcDecl.Type.Params.List)
-
 		reverseParams := []*ast.Field{}
 		for i := range params {
 			n := params[len(params)-1-i]
@@ -3843,7 +3735,6 @@ func (icg *ICG) Visit(node ast.Node) *SILTable {
 		icg._codeInfoList = append([]CodeInfo{opcode}, icg._codeInfoList...)
 		icg._funcDeclVarSize = 0
 		icg._silTable.Insert(funcKey, icg._codeInfoList)
-		icg._silTable.ParamInsert(funcKey, paramsCount)
 
 		icg._codeInfoList = []CodeInfo{}
 	// Files and packages

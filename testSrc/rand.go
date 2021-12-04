@@ -1,4 +1,5 @@
-package main
+learpackage main
+
 import (
 	"math/rand"
 	"strconv"
@@ -24,6 +25,3 @@ func (t *BadChaincode) Invoke(stub shim.ChaincodeStubInterface) peer.Response {
 	stub.PutState(strconv.Itoa(ran), []byte(data))
 	return shim.Success([]byte("Success"))
 }
-
-
-

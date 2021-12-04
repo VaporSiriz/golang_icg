@@ -23,4 +23,3 @@ func (t BadChaincode) Invoke(stub shim.ChaincodeStubInterface) peer.Response {
 	return shim.Success(res)
 }
 
-

@@ -37,9 +37,7 @@ func (l *LiteralTable) GetLiteral(k int) (string, bool) {
 	}
 	return res , ok
 }
-func (l *LiteralTable) GetTable() map[string]int {
-	return l.table
-}
+
 // BlockSymbolTable ...
 type BlockSymbolTable struct {
 	table map[int]*SymbolTable
@@ -77,7 +75,6 @@ type SymbolInfo struct {
 	FieldWidth []int // struct type일 때만 ..
 	FieldType  []types.Type
 	IsReceiver bool
-	IsError bool
 }
 
 //SymbolTable ...
@@ -117,4 +114,3 @@ func (o *SymbolTable) IsEmpty() bool {
 	}
 	return false
 }
-

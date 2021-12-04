@@ -5,16 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"./symbolTable"
+	symbolTable "vaporsiriz/icg/symbolTable"
 )
-
-var sysFuncList = [...]string {
-	//fmt
-	"Errorf", "Fprint", "Fprintf", "Fscan", "Fscanf", "Fscanln", "Print", "Printf", "Println", "Scan", "Scanf",
-	"Scanln", "Sprint", "Sprintf", "Sprintln","Sscan", "Sscanf", "Sscanln","Error",
-
-	//hyperledger fabric shim
-	"CreateCompositeKey", "Error", "GetMSPID", "Start", "StartlnProc", "Success"}
 
 type SilType int
 
@@ -41,12 +33,7 @@ func (silType SilType) String() string {
 
 	return names[silType]
 }
-var conversionList = [...]string {
-	"byte", "[]byte", "int8", "[]int8","int16", "[]int16", "int32", "[]int32","int64", "[]int64", "int", "[]int",
-	"uint8", "[]uint8","uint16", "[]uint16", "uint32", "[]uint32","uint64", "[]uint64", "uint", "[]uint",
-	"float32","[]float32", "float64","[]float64", "string","[]string",
 
-}
 type Opcode int
 
 const (
@@ -125,7 +112,7 @@ func (opcode Opcode) String() string {
 	names := [...]string{
 		"nop", "pop", "pop2", "dup", "dup2", "swap", "swap2", "ldc", "lod", "ldi", "lda", "ldftn", "str", "sti",
 		"add", "sub", "mul", "div", "mod", "neg", "eq", "ne", "ge", "gt", "le", "lt", "band", "bor", "bxor",
-		"bcom", "shl", "shr", "ushr", "and", "or", "not", "inc", "dec", "Label", "tjp", "fjp", "ujp", "ret", "retv", "retmv", "proc",
+		"bcom", "shl", "shr", "ushr", "and", "or", "not", "inc", "dec", "label", "tjp", "fjp", "ujp", "ret", "retv", "retmv", "proc",
 		"ldp", "call", "calli", "calls", "callv", "procva", "end", "cvc", "cvs", "cvi", "cvui", "cvl", "cvul", "cvp", "cvf", "cvd"}
 
 	return names[opcode]
@@ -213,12 +200,10 @@ func (code *StackOpcode) GetLine() int {
 func (code StackOpcode) String() string {
 	builder := strings.Builder{}
 	builder.WriteString(code._opcode.String())
-	if code._opcode != Lda {
-		if code._type != -1 {
-			str := code._type.String()
-			if len(str) > 0 {
-				builder.WriteString("." + str)
-			}
+	if code._type != -1 {
+		str := code._type.String()
+		if len(str) > 0 {
+			builder.WriteString("." + str)
 		}
 	}
 
@@ -368,13 +353,11 @@ type SILTable struct {
 	_FunctionCodeTable map[int][]CodeInfo
 	_Mfkey             int
 	_Pool              *symbolTable.StringPool
-	_FunctionParamTable map[int]int
 }
 
 func (tble *SILTable) Init(pool *symbolTable.StringPool) {
 	tble._FunctionCodeTable = make(map[int][]CodeInfo)
 	tble._Pool = pool
-	tble._FunctionParamTable = make(map[int]int)
 }
 
 func (tble *SILTable) Insert(fKey int, codeList []CodeInfo) {
@@ -401,22 +384,4 @@ func (tble *SILTable) StringPool() *symbolTable.StringPool {
 }
 func (tble *SILTable) MainKey() int {
 	return tble._Mfkey
-}
-
-func (tble *SILTable) ParamInsert(fKey int, paramCount int) bool{
-	res := false
-	if tble._FunctionParamTable == nil {
-		tble._FunctionParamTable = make(map[int]int)
-	}
-
-	if _,ok := tble._FunctionParamTable[fKey]; !ok {
-		tble._FunctionParamTable[fKey] = paramCount
-		res = true
-	}
-
-	return res
-}
-
-func (tble *SILTable) FunctionParamCountTable() map[int]int {
-	return tble._FunctionParamTable
 }

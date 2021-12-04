@@ -18,10 +18,15 @@ func gcd(a int, b int) int {
 	}
 	return c
 }
+func swap(a int, b int) (int, int) {
+	c := b
+	d := a
 
+	return c, d
+}
 func main() {
-	a := 60
-	b := 48
-	gcd := gcd(a,b)
-	fmt.Println(gcd)
+	a := 42
+	b := 56
+	c, d := swap(a, b)
+	fmt.Println(c + d)
 }
