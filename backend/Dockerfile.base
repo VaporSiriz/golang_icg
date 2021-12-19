@@ -1,0 +1,14 @@
+FROM golang:1.13
+
+# for real image file
+COPY . /app
+WORKDIR /app
+
+RUN apt-get update
+#RUN apt-get install git
+#RUN git clone https://github.com/mitchellh/go-z3.git
+#RUN make
+RUN cp go-z3/vendor/z3/build/libz3.so /lib/x86_64-linux-gnu/
+
+WORKDIR /app/
+CMD ["app"]
