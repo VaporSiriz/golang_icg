@@ -62,9 +62,7 @@ func (analyzer *ASTAnalyzer) MSIAnalysis(node ast.Node, info *types.Info) {
 			if isMap {
 				linenum := position.Line
 				dealFirstDetect(analyzer)
-				analyzer.error_str += fmt.Sprintf("\t CCW-%03d : %s\n", ccw, ccw.String())
-				analyzer.error_str += fmt.Sprintf("\t not use a map type \"%s\" in loop range\n", rangeFor.X)
-				analyzer.error_str += fmt.Sprintf("\t %s : %d\n\n", analyzer.analysisFile, linenum)
+				analyzer.addErrorStr(ccw, linenum, fmt.Sprintf("\t not use a map type \"%s\" in loop range\n", rangeFor.X))
 				fmt.Printf("\t CCW-%03d : %s\n", ccw, ccw.String())
 				fmt.Printf("\t not use a map type \"%s\" in loop range\n", rangeFor.X)
 				fmt.Printf("\t %s : %d\n\n", analyzer.analysisFile, linenum)
@@ -157,8 +155,8 @@ func (analyzer *ASTAnalyzer) PhantomReadAnalysis(node ast.Node, info *types.Info
 				if strings.Contains(funcName, "GetHistoryForKey") || strings.Contains(funcName, "GetQueryResult") {
 					linenum := position.Line
 					dealFirstDetect(analyzer)
+					analyzer.addErrorStr(ccw, linenum)
 					fmt.Printf("\t CCW-%03d : %s\n", ccw, ccw.String())
-
 					fmt.Printf("\t %s : %d\n\n", analyzer.analysisFile, linenum)
 					analyzer.analysisCount++
 				}
@@ -179,6 +177,7 @@ func (analyzer *ASTAnalyzer) RandomNumberGenerationAnalysis(node ast.Node, info 
 		if imprt.Value == "\"math/rand\"" {
 			linenum := position.Line
 			dealFirstDetect(analyzer)
+			analyzer.addErrorStr(ccw, linenum)
 			fmt.Printf("\t CCW-%03d : %s\n", ccw, ccw.String())
 			fmt.Printf("\t %s : %d\n\n", analyzer.analysisFile, linenum)
 			analyzer.addErrorStr(ccw, linenum)
@@ -209,8 +208,8 @@ func (analyzer *ASTAnalyzer) UseTimeMouleAnalysis(node ast.Node, info *types.Inf
 		if imprt.Value == "\"time\"" {
 			linenum := position.Line
 			dealFirstDetect(analyzer)
+			analyzer.addErrorStr(ccw, linenum)
 			fmt.Printf("\t CCW-%03d : %s\n", ccw, ccw.String())
-
 			fmt.Printf("\t %s : %d\n\n", analyzer.analysisFile, linenum)
 			analyzer.analysisCount++
 			hasRandomImport = true
@@ -220,8 +219,8 @@ func (analyzer *ASTAnalyzer) UseTimeMouleAnalysis(node ast.Node, info *types.Inf
 		if is_rand {
 			linenum := position.Line
 			dealFirstDetect(analyzer)
+			analyzer.addErrorStr(ccw, linenum)
 			fmt.Printf("\t CCW-%03d : %s\n", ccw, ccw.String())
-
 			fmt.Printf("\t %s : %d\n\n", analyzer.analysisFile, linenum)
 			analyzer.analysisCount++
 		}
