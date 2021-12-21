@@ -32,17 +32,21 @@ func (analyzer *ASTAnalyzer) Init(analysisFile string, fset *token.FileSet) {
 }
 
 func (analyzer *ASTAnalyzer) addErrorStr(ccw CCW, linenum int, add_str ...string) {
+	// fmt.Printf("\t CCW-%03d : %s\n", ccw, ccw.String())
 	analyzer.error_str += fmt.Sprintf("\t CCW-%03d : %s\n", ccw, ccw.String())
+	fmt.Sprintf("\t %s\n", add_str)
 	for _, str := range add_str {
 		analyzer.error_str += str
+		fmt.Printf("\t %s\n", str)
 	}
+	// fmt.Printf("\t %s : %d\n\n", analyzer.analysisFile, linenum)
 	analyzer.error_str += fmt.Sprintf("\t %s : %d\n\n", analyzer.analysisFile, linenum)
 }
 
 func dealFirstDetect(analyzer *ASTAnalyzer) {
 	if isFirstDetect {
 		analyzer.error_str += fmt.Sprintf("chaincode weakness detected:\n")
-		fmt.Printf("chaincode weakness detected:\n")
+		// fmt.Printf("chaincode weakness detected:\n")
 		isFirstDetect = false
 	}
 }
@@ -63,9 +67,6 @@ func (analyzer *ASTAnalyzer) MSIAnalysis(node ast.Node, info *types.Info) {
 				linenum := position.Line
 				dealFirstDetect(analyzer)
 				analyzer.addErrorStr(ccw, linenum, fmt.Sprintf("\t not use a map type \"%s\" in loop range\n", rangeFor.X))
-				fmt.Printf("\t CCW-%03d : %s\n", ccw, ccw.String())
-				fmt.Printf("\t not use a map type \"%s\" in loop range\n", rangeFor.X)
-				fmt.Printf("\t %s : %d\n\n", analyzer.analysisFile, linenum)
 				analyzer.analysisCount++
 			}
 		}
@@ -83,8 +84,6 @@ func (analyzer *ASTAnalyzer) UsedGoroutineAnalysis(node ast.Node, info *types.In
 			linenum := position.Line
 			dealFirstDetect(analyzer)
 			analyzer.addErrorStr(ccw, linenum, fmt.Sprintf("\t not use go routine \"go %v\"\n", tv.Type.Underlying()))
-			fmt.Printf("\t CCW-%03d : %s\n", ccw, ccw.String())
-			fmt.Printf("\t %s : %d\n\n", analyzer.analysisFile, linenum)
 			analyzer.analysisCount++
 		}
 	}
@@ -123,10 +122,7 @@ func (analyzer *ASTAnalyzer) UnhandledErrorsAnalysis(node ast.Node, info *types.
 							linenum := position.Line
 							dealFirstDetect(analyzer)
 							analyzer.addErrorStr(ccw, linenum)
-							fmt.Printf("\t CCW-%03d : %s\n", ccw, ccw.String())
-							fmt.Printf("\t %s : %d\n\n", analyzer.analysisFile, linenum)
 							analyzer.analysisCount++
-							//fmt.Printf("\t   The %d return type of rhs( %s ) is error, but is not assigned to the %d lhs ( _ ).\n\n", errLocation, funcName, errLocation)
 							errLocation = -1
 						}
 					}
@@ -156,8 +152,6 @@ func (analyzer *ASTAnalyzer) PhantomReadAnalysis(node ast.Node, info *types.Info
 					linenum := position.Line
 					dealFirstDetect(analyzer)
 					analyzer.addErrorStr(ccw, linenum)
-					fmt.Printf("\t CCW-%03d : %s\n", ccw, ccw.String())
-					fmt.Printf("\t %s : %d\n\n", analyzer.analysisFile, linenum)
 					analyzer.analysisCount++
 				}
 			}
@@ -178,19 +172,16 @@ func (analyzer *ASTAnalyzer) RandomNumberGenerationAnalysis(node ast.Node, info 
 			linenum := position.Line
 			dealFirstDetect(analyzer)
 			analyzer.addErrorStr(ccw, linenum)
-			fmt.Printf("\t CCW-%03d : %s\n", ccw, ccw.String())
-			fmt.Printf("\t %s : %d\n\n", analyzer.analysisFile, linenum)
 			analyzer.addErrorStr(ccw, linenum)
 			analyzer.analysisCount++
 			hasRandomImport = true
 		}
 	} else if selexp, ok := node.(*ast.SelectorExpr); ok && hasRandomImport {
 		is_rand := (selexp.X.(*ast.Ident).Name == "rand")
+		fmt.Printf("is_rand : %v\n", is_rand)
 		if is_rand {
 			linenum := position.Line
 			dealFirstDetect(analyzer)
-			fmt.Printf("\t CCW-%03d : %s\n", ccw, ccw.String())
-			fmt.Printf("\t %s : %d\n\n", analyzer.analysisFile, linenum)
 			analyzer.addErrorStr(ccw, linenum)
 			analyzer.analysisCount++
 		}
@@ -209,8 +200,55 @@ func (analyzer *ASTAnalyzer) UseTimeMouleAnalysis(node ast.Node, info *types.Inf
 			linenum := position.Line
 			dealFirstDetect(analyzer)
 			analyzer.addErrorStr(ccw, linenum)
-			fmt.Printf("\t CCW-%03d : %s\n", ccw, ccw.String())
-			fmt.Printf("\t %s : %d\n\n", analyzer.analysisFile, linenum)
+			analyzer.analysisCount++
+			hasTimeImport = true
+		}
+	} else if selexp, ok := node.(*ast.SelectorExpr); ok && hasTimeImport {
+		has_timestamp := (selexp.X.(*ast.Ident).Name == "time") && (selexp.Sel.Name == "Now")
+		if has_timestamp {
+			linenum := position.Line
+			dealFirstDetect(analyzer)
+			analyzer.addErrorStr(ccw, linenum)
+			analyzer.analysisCount++
+		}
+	}
+}
+
+func (analyzer *ASTAnalyzer) UsedGlobalVariableAnalysis(node ast.Node, info *types.Info) {
+	var ccw CCW = USED_GLOBAL_VARIABLE
+	var position token.Position
+
+	if node != nil {
+		position = analyzer.fs.Position(node.Pos())
+	}
+	if _, ok := node.(*ast.GenDecl); ok {
+		has_prob_got_global = true
+		fmt.Println(has_prob_got_global)
+	}
+
+	if has_prob_got_global {
+		if _, ok := node.(*ast.ValueSpec); ok {
+			linenum := position.Line
+			dealFirstDetect(analyzer)
+			analyzer.addErrorStr(ccw, linenum)
+		}
+	} else {
+		has_prob_got_global = false
+	}
+}
+
+func (analyzer *ASTAnalyzer) ExternalFileAccessAnalysis(node ast.Node, info *types.Info) {
+	var ccw CCW = EXTERNAL_FILE_ACCESS
+	var position token.Position
+
+	if node != nil {
+		position = analyzer.fs.Position(node.Pos())
+	}
+	if imprt, ok := node.(*ast.BasicLit); ok {
+		if imprt.Value == "\"os\"" {
+			linenum := position.Line
+			dealFirstDetect(analyzer)
+			analyzer.addErrorStr(ccw, linenum)
 			analyzer.analysisCount++
 			hasRandomImport = true
 		}
@@ -220,8 +258,6 @@ func (analyzer *ASTAnalyzer) UseTimeMouleAnalysis(node ast.Node, info *types.Inf
 			linenum := position.Line
 			dealFirstDetect(analyzer)
 			analyzer.addErrorStr(ccw, linenum)
-			fmt.Printf("\t CCW-%03d : %s\n", ccw, ccw.String())
-			fmt.Printf("\t %s : %d\n\n", analyzer.analysisFile, linenum)
 			analyzer.analysisCount++
 		}
 	}
@@ -237,6 +273,7 @@ func (analyzer *ASTAnalyzer) Analysis(f *ast.File, info *types.Info) string {
 		analyzer.PhantomReadAnalysis(node, info)
 		analyzer.RandomNumberGenerationAnalysis(node, info)
 		analyzer.UseTimeMouleAnalysis(node, info)
+		analyzer.UsedGlobalVariableAnalysis(node, info)
 		return true
 	})
 
