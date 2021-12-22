@@ -4,15 +4,26 @@ import (
 	"fmt"
 )
 
-type Global struct {
+type GLobal struct {
 	global string
 }
 
+var Global GLobal
 var global string
 
 func main() {
-	var q Global
+	var q GLobal
 	global = "3"
 	q.global = "1"
-	fmt.Printf("global : %s %v\n", global, q)
+	global2 = "5"
+	var p GLobal
+	p.global = "4"
+	fmt.Printf("global : %s %s %v %v\n", global, global2, q, p)
+	main2()
 }
+
+func main2() {
+	
+}
+
+var global2 string

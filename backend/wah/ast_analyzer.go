@@ -217,25 +217,27 @@ func (analyzer *ASTAnalyzer) UseTimeMouleAnalysis(node ast.Node, info *types.Inf
 func (analyzer *ASTAnalyzer) UsedGlobalVariableAnalysis(node ast.Node, info *types.Info) {
 	var ccw CCW = USED_GLOBAL_VARIABLE
 	var position token.Position
-
 	if node != nil {
 		position = analyzer.fs.Position(node.Pos())
 	}
-	if _, ok := node.(*ast.FuncDecl); ok {
-		inFuncDecl = true
+	if _, ok := node.(*ast.DeclStmt); ok {
+		inDeclStmt = true
 	}
+	
 	if _, ok := node.(*ast.GenDecl); ok {
-		hasProbGotGlobal = true
+		if inDeclStmt {
+			hasProbGotGlobal = false
+			inDeclStmt = false
+		} else {
+			hasProbGotGlobal = true
+		}
 	}
 
-	if !inFuncDecl && hasProbGotGlobal {
-		if _, ok := node.(*ast.ValueSpec); ok {
-			linenum := position.Line
-			dealFirstDetect(analyzer)
-			analyzer.addErrorStr(ccw, linenum)
-			analyzer.analysisCount++
-		}
-	} else {
+	if _, ok := node.(*ast.ValueSpec); ok && hasProbGotGlobal{
+		linenum := position.Line
+		dealFirstDetect(analyzer)
+		analyzer.addErrorStr(ccw, linenum)
+		analyzer.analysisCount++
 		hasProbGotGlobal = false
 	}
 }
@@ -249,15 +251,20 @@ func (analyzer *ASTAnalyzer) ExternalFileAccessAnalysis(node ast.Node, info *typ
 	}
 	if imprt, ok := node.(*ast.BasicLit); ok {
 		if imprt.Value == "\"os\"" {
-			linenum := position.Line
-			dealFirstDetect(analyzer)
-			analyzer.addErrorStr(ccw, linenum)
-			analyzer.analysisCount++
-			hasRandomImport = true
+			hasOsImport = true
+		} else if imprt.Value == "\"io/ioutil\"" {
+			hasIoutilImport = true
 		}
-	} else if selexp, ok := node.(*ast.SelectorExpr); ok && hasRandomImport {
-		is_rand := (selexp.X.(*ast.Ident).Name == "time")
-		if is_rand {
+	} 
+	if selexp, ok := node.(*ast.SelectorExpr); ok && (hasOsImport || hasIoutilImport) {
+		is_os := (selexp.X.(*ast.Ident).Name == "os")
+		is_ioutil := (selexp.X.(*ast.Ident).Name == "ioutil")
+		is_weakness := is_ioutil
+		if is_os {
+			_, ok = osMethodMap[selexp.Sel.Name]
+			is_weakness = ok
+		}
+		if is_weakness {
 			linenum := position.Line
 			dealFirstDetect(analyzer)
 			analyzer.addErrorStr(ccw, linenum)
@@ -277,6 +284,7 @@ func (analyzer *ASTAnalyzer) Analysis(f *ast.File, info *types.Info) string {
 		analyzer.RandomNumberGenerationAnalysis(node, info)
 		analyzer.UseTimeMouleAnalysis(node, info)
 		analyzer.UsedGlobalVariableAnalysis(node, info)
+		analyzer.ExternalFileAccessAnalysis(node, info)
 		return true
 	})
 
