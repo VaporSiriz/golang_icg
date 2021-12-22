@@ -221,19 +221,22 @@ func (analyzer *ASTAnalyzer) UsedGlobalVariableAnalysis(node ast.Node, info *typ
 	if node != nil {
 		position = analyzer.fs.Position(node.Pos())
 	}
+	if _, ok := node.(*ast.FuncDecl); ok {
+		inFuncDecl = true
+	}
 	if _, ok := node.(*ast.GenDecl); ok {
-		has_prob_got_global = true
-		fmt.Println(has_prob_got_global)
+		hasProbGotGlobal = true
 	}
 
-	if has_prob_got_global {
+	if !inFuncDecl && hasProbGotGlobal {
 		if _, ok := node.(*ast.ValueSpec); ok {
 			linenum := position.Line
 			dealFirstDetect(analyzer)
 			analyzer.addErrorStr(ccw, linenum)
+			analyzer.analysisCount++
 		}
 	} else {
-		has_prob_got_global = false
+		hasProbGotGlobal = false
 	}
 }
 

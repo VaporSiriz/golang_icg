@@ -4,7 +4,8 @@ var isDebug bool = false
 var isFirstDetect = true
 var hasRandomImport = false
 var hasTimeImport = false
-var has_prob_got_global = false
+var inFuncDecl = false
+var hasProbGotGlobal = false
 
 type CCW int
 
