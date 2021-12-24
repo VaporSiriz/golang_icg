@@ -21,3 +21,5 @@ $ cd backend
 $ docker build -t bloackchain_staticanalysis .
 
 $ docker run --rm -p 8080:8080 bloackchain_staticanalysis
+
+127.0.0.1:8080/index로 접근

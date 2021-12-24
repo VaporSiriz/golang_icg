@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -39,16 +40,22 @@ func setupRouter() *gin.Engine {
 		}
 	})
 
-	r.POST("/upload", func(c *gin.Context) {
+	r.GET("/upload", func(c *gin.Context) {
 		c.Request.ParseMultipartForm(1000)
 		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization, Origin")
 		c.Header("Access-Control-Allow-Credentials", "true")
-		c.Header("Access-Control-Allow-Origin", "http://127.0.0.8:8080")
-		c.Header("Access-Control-Allow-Methods", "POST")
-
-		code := c.Request.PostForm["code"][0]
-		//fmt.Println(code)
+		c.Header("Access-Control-Allow-Origin", "http://127.0.0.1:8080")
+		c.Header("Access-Control-Allow-Methods", "GET")
+		code := c.Request.Form["code"][0]
 		c.String(http.StatusOK, AnalysisAst(code))
+	})
+
+	r.GET("/index", func(c *gin.Context) {
+		// OK 이면 index.html파일에 JSON데이터를 넘겨서 보여줌
+		c.HTML(http.StatusOK, "index.html", gin.H{
+			"title": "Home Page",
+		},
+		)
 	})
 
 	return r
@@ -56,6 +63,9 @@ func setupRouter() *gin.Engine {
 
 func main() {
 	r := setupRouter()
+	//r.LoadHTMLFiles("templates/")
+	r.LoadHTMLGlob("template/*")
+	r.Static("static", "./static")
 	// Listen and Server in 0.0.0.0:8080
 	r.Run(":8080")
 }

@@ -1,3 +1,4 @@
+//go:build !sil_complete
 // +build !sil_complete
 
 package main
@@ -153,8 +154,8 @@ func AnalysisAst(body interface{}) string {
 	return errStr
 }
 
-func main() {
-//func AstAnalysisGoFile() {
+//func main() {
+func AstAnalysisGoFile() {
 	var goFile string
 	var fs *token.FileSet
 	var f *ast.File

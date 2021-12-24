@@ -171,8 +171,7 @@ func (analyzer *ASTAnalyzer) RandomNumberGenerationAnalysis(node ast.Node, info 
 		if imprt.Value == "\"math/rand\"" {
 			linenum := position.Line
 			dealFirstDetect(analyzer)
-			analyzer.addErrorStr(ccw, linenum)
-			analyzer.addErrorStr(ccw, linenum)
+			analyzer.addErrorStr(ccw, linenum, "import math/rand.")
 			analyzer.analysisCount++
 			hasRandomImport = true
 		}
@@ -182,7 +181,7 @@ func (analyzer *ASTAnalyzer) RandomNumberGenerationAnalysis(node ast.Node, info 
 		if is_rand {
 			linenum := position.Line
 			dealFirstDetect(analyzer)
-			analyzer.addErrorStr(ccw, linenum)
+			analyzer.addErrorStr(ccw, linenum, "use math/rand module.")
 			analyzer.analysisCount++
 		}
 	}
@@ -199,7 +198,7 @@ func (analyzer *ASTAnalyzer) UseTimeMouleAnalysis(node ast.Node, info *types.Inf
 		if imprt.Value == "\"time\"" {
 			linenum := position.Line
 			dealFirstDetect(analyzer)
-			analyzer.addErrorStr(ccw, linenum)
+			analyzer.addErrorStr(ccw, linenum, "use time module")
 			analyzer.analysisCount++
 			hasTimeImport = true
 		}
@@ -208,7 +207,7 @@ func (analyzer *ASTAnalyzer) UseTimeMouleAnalysis(node ast.Node, info *types.Inf
 		if has_timestamp {
 			linenum := position.Line
 			dealFirstDetect(analyzer)
-			analyzer.addErrorStr(ccw, linenum)
+			analyzer.addErrorStr(ccw, linenum, "generate timestamp by time.Now()")
 			analyzer.analysisCount++
 		}
 	}
@@ -223,7 +222,7 @@ func (analyzer *ASTAnalyzer) UsedGlobalVariableAnalysis(node ast.Node, info *typ
 	if _, ok := node.(*ast.DeclStmt); ok {
 		inDeclStmt = true
 	}
-	
+
 	if _, ok := node.(*ast.GenDecl); ok {
 		if inDeclStmt {
 			hasProbGotGlobal = false
@@ -233,10 +232,10 @@ func (analyzer *ASTAnalyzer) UsedGlobalVariableAnalysis(node ast.Node, info *typ
 		}
 	}
 
-	if _, ok := node.(*ast.ValueSpec); ok && hasProbGotGlobal{
+	if _, ok := node.(*ast.ValueSpec); ok && hasProbGotGlobal {
 		linenum := position.Line
 		dealFirstDetect(analyzer)
-		analyzer.addErrorStr(ccw, linenum)
+		analyzer.addErrorStr(ccw, linenum, "has global variable")
 		analyzer.analysisCount++
 		hasProbGotGlobal = false
 	}
@@ -255,7 +254,7 @@ func (analyzer *ASTAnalyzer) ExternalFileAccessAnalysis(node ast.Node, info *typ
 		} else if imprt.Value == "\"io/ioutil\"" {
 			hasIoutilImport = true
 		}
-	} 
+	}
 	if selexp, ok := node.(*ast.SelectorExpr); ok && (hasOsImport || hasIoutilImport) {
 		is_os := (selexp.X.(*ast.Ident).Name == "os")
 		is_ioutil := (selexp.X.(*ast.Ident).Name == "ioutil")
@@ -267,7 +266,7 @@ func (analyzer *ASTAnalyzer) ExternalFileAccessAnalysis(node ast.Node, info *typ
 		if is_weakness {
 			linenum := position.Line
 			dealFirstDetect(analyzer)
-			analyzer.addErrorStr(ccw, linenum)
+			analyzer.addErrorStr(ccw, linenum, "can't use external file")
 			analyzer.analysisCount++
 		}
 	}
